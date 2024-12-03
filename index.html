@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Location-based AR.js Demo</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+    <style>
+        #locationDisplay {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body style="margin: 0; overflow: hidden;">
+    <div id="locationDisplay">位置情報を取得中...</div>
+
+    <a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        <a-entity id="modelEntity" 
+            position="0 -3 -3" 
+            rotation="0 90 0"  
+            scale="0 0 0"
+            visible="false"
+            animation-mixer>
+        </a-entity>
+        <a-camera gps-camera="minDistance:5; maxDistance:50"></a-camera>
+    </a-scene>
+
+    <script>
+        const locationDisplay = document.getElementById('locationDisplay');
+        const modelEntity = document.getElementById('modelEntity');
+        const R = 6371000; // 地球の半径（メートル）
+
+        // JSONデータを取得
+        async function fetchLocations() {
+            const response = await fetch('data.json'); // JSONファイルを読み込む
+            return await response.json(); // JSONデータをJavaScriptのオブジェクトに変換
+        }
+
+        // 距離計算関数
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        // 最も近い目的地を見つける
+        async function findClosestDestination(userLatitude, userLongitude) {
+            const locations = await fetchLocations(); // JSONデータを取得
+            let closestLocation = null;
+            let minDistance = Infinity;
+
+            locations.forEach(location => {
+                const distance = calculateDistance(userLatitude, userLongitude, location.latitude, location.longitude);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestLocation = location;
+                }
+            });
+
+            return { closestLocation, minDistance };
+        }
+
+        // GPS位置取得
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(
+                async (position) => {
+                    const userLatitude = position.coords.latitude;
+                    const userLongitude = position.coords.longitude;
+
+                    const { closestLocation, minDistance } = await findClosestDestination(userLatitude, userLongitude);
+
+                    if (closestLocation) {
+                        locationDisplay.innerHTML = `
+                            <strong>現在地</strong><br>
+                            緯度: ${userLatitude.toFixed(6)}<br>
+                            経度: ${userLongitude.toFixed(6)}<br>
+                            <strong>最寄りの目的地:</strong> ${closestLocation.name}<br>
+                            <strong>距離:</strong> ${minDistance.toFixed(1)} m
+                        `;
+
+                        // モデルの表示を更新
+                        modelEntity.setAttribute('gltf-model', closestLocation.modelUrl);
+                        modelEntity.setAttribute('gps-entity-place', `latitude: ${closestLocation.latitude}; longitude: ${closestLocation.longitude};`);
+                        modelEntity.setAttribute('visible', minDistance <= 100); // 100m以内で表示
+                        modelEntity.object3D.scale.set(3, 3, 3);
+                    }
+                },
+                (error) => {
+                    console.error("位置情報の取得に失敗:", error.message);
+                    locationDisplay.innerHTML = "位置情報の取得に失敗しました。";
+                },
+                { enableHighAccuracy: true, maximumAge: 3000, timeout: 5000 }
+            );
+        } else {
+            console.error("このブラウザは位置情報をサポートしていません。");
+            locationDisplay.innerHTML = "位置情報がサポートされていません。";
+        }
+    </script>
+</body>
+</html>
