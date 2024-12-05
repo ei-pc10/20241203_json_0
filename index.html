@@ -92,7 +92,7 @@
                         // モデルの表示を更新
                         modelEntity.setAttribute('gltf-model', closestLocation.modelUrl);
                         modelEntity.setAttribute('gps-entity-place', `latitude: ${closestLocation.latitude}; longitude: ${closestLocation.longitude};`);
-                        modelEntity.setAttribute('visible', minDistance <= 100); // 100m以内で表示
+                        modelEntity.setAttribute('visible', minDistance <= 1000); // 1000m以内で表示
                         modelEntity.object3D.scale.set(3, 3, 3);
                     }
                 },
