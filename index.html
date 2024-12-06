@@ -34,8 +34,15 @@
 
         // JSONデータを取得
         async function fetchLocations() {
-            const response = await fetch('data.json'); // JSONファイルを読み込む
-            return await response.json(); // JSONデータをJavaScriptのオブジェクトに変換
+            try {
+                const response = await fetch('data.json'); // JSONファイルを読み込む
+                if (!response.ok) throw new Error("JSONファイルが見つかりません");
+                return await response.json();
+            } catch (error) {
+                console.error("JSONデータの取得に失敗:", error.message);
+                locationDisplay.innerHTML = "データの取得に失敗しました。";
+                return [];
+            }
         }
 
         // 距離計算関数
@@ -54,46 +61,24 @@
                     const userLatitude = position.coords.latitude;
                     const userLongitude = position.coords.longitude;
 
-                    const locations = await fetchLocations(); // JSONデータを取得
-                    let allLocationsHTML = ''; // 表示用HTML
-                    const nearbyLocations = []; // 1000m以内の目的地を格納
+                    const locations = await fetchLocations();
+                    if (!locations.length) return;
+
+                    let allLocationsHTML = '';
 
                     locations.forEach(location => {
                         const distance = calculateDistance(userLatitude, userLongitude, location.latitude, location.longitude);
-
-                        // 1000m以内の目的地を保存
                         if (distance <= 1000) {
-                            nearbyLocations.push(location);
-
-                            // 3Dモデルを作成してシーンに追加
                             const modelEntity = document.createElement('a-entity');
                             modelEntity.setAttribute('gltf-model', location.modelUrl);
                             modelEntity.setAttribute('gps-entity-place', `latitude: ${location.latitude}; longitude: ${location.longitude}`);
-                            modelEntity.setAttribute('scale', '0.5 0.5 0.5'); // 小さめのスケールに設定
-                            modelEntity.setAttribute('position="0 -3 -3');
-                            modelEntity.setAttribute('animation-mixer', '');
+                            modelEntity.setAttribute('scale', '0.5 0.5 0.5');
                             scene.appendChild(modelEntity);
                         }
-
-                        // すべての目的地の距離を表示
-                        allLocationsHTML += `
-                            <br>
-                            <strong>${location.name}</strong><br>
-                            距離: ${distance.toFixed(1)} m<br>
-                            緯度: ${location.latitude}<br>
-                            経度: ${location.longitude}<br>
-                        `;
+                        allLocationsHTML += `<strong>${location.name}</strong> - 距離: ${distance.toFixed(1)}m<br>`;
                     });
 
-                    // 現在地情報とすべての目的地の情報を表示
-                    locationDisplay.innerHTML = `
-                        <strong>現在地</strong><br>
-                        緯度: ${userLatitude.toFixed(6)}<br>
-                        経度: ${userLongitude.toFixed(6)}<br>
-                        <strong>目的地リスト:</strong>${allLocationsHTML}
-                    `;
-
-                    console.log("1000m以内の目的地:", nearbyLocations);
+                    locationDisplay.innerHTML = allLocationsHTML;
                 },
                 (error) => {
                     console.error("位置情報の取得に失敗:", error.message);
