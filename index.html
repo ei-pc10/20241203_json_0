@@ -72,7 +72,8 @@
                             const modelEntity = document.createElement('a-entity');
                             modelEntity.setAttribute('gltf-model', location.modelUrl);
                             modelEntity.setAttribute('gps-entity-place', `latitude: ${location.latitude}; longitude: ${location.longitude}`);
-                            modelEntity.setAttribute('scale', '0.5 0.5 0.5');
+                            modelEntity.setAttribute('scale', '0.2 0.2 0.2');
+                            modelEntity.setAttribute('position', '0 -2 -2'); // 位置を調整
                             scene.appendChild(modelEntity);
                         }
                         allLocationsHTML += `<strong>${location.name}</strong> - 距離: ${distance.toFixed(1)}m<br>`;
