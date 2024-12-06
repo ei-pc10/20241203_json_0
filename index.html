@@ -24,19 +24,12 @@
     <div id="locationDisplay">位置情報を取得中...</div>
 
     <a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-        <a-entity id="modelEntity" 
-            position="0 -3 -3" 
-            rotation="0 90 0"  
-            scale="0 0 0"
-            visible="false"
-            animation-mixer>
-        </a-entity>
-        <a-camera gps-camera="minDistance:5; maxDistance:50"></a-camera>
+        <!-- 3Dモデルを表示するためのテンプレート -->
     </a-scene>
 
     <script>
         const locationDisplay = document.getElementById('locationDisplay');
-        const modelEntity = document.getElementById('modelEntity');
+        const scene = document.querySelector('a-scene');
         const R = 6371000; // 地球の半径（メートル）
 
         // JSONデータを取得
@@ -54,7 +47,7 @@
             return R * c;
         }
 
-        // GPS位置取得（修正部分含む）
+        // GPS位置取得
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(
                 async (position) => {
@@ -62,40 +55,44 @@
                     const userLongitude = position.coords.longitude;
 
                     const locations = await fetchLocations(); // JSONデータを取得
-                    let closestLocation = null;
-                    let minDistance = Infinity;
+                    let allLocationsHTML = ''; // 表示用HTML
+                    const nearbyLocations = []; // 1000m以内の目的地を格納
 
                     locations.forEach(location => {
                         const distance = calculateDistance(userLatitude, userLongitude, location.latitude, location.longitude);
 
-                        // 最も近い目的地を見つける
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestLocation = location;
+                        // 1000m以内の目的地を保存
+                        if (distance <= 1000) {
+                            nearbyLocations.push(location);
+
+                            // 3Dモデルを作成してシーンに追加
+                            const modelEntity = document.createElement('a-entity');
+                            modelEntity.setAttribute('gltf-model', location.modelUrl);
+                            modelEntity.setAttribute('gps-entity-place', `latitude: ${location.latitude}; longitude: ${location.longitude}`);
+                            modelEntity.setAttribute('scale', '3 3 3');
+                            modelEntity.setAttribute('animation-mixer', '');
+                            scene.appendChild(modelEntity);
                         }
+
+                        // すべての目的地の距離を表示
+                        allLocationsHTML += `
+                            <br>
+                            <strong>${location.name}</strong><br>
+                            距離: ${distance.toFixed(1)} m<br>
+                            緯度: ${location.latitude}<br>
+                            経度: ${location.longitude}<br>
+                        `;
                     });
 
-                    // 現在地情報と最寄りの目的地を表示
+                    // 現在地情報とすべての目的地の情報を表示
                     locationDisplay.innerHTML = `
                         <strong>現在地</strong><br>
                         緯度: ${userLatitude.toFixed(6)}<br>
                         経度: ${userLongitude.toFixed(6)}<br>
-                        <strong>最寄りの目的地:</strong> ${closestLocation.name}<br>
-                        <strong>距離:</strong> ${minDistance.toFixed(1)} m
+                        <strong>目的地リスト:</strong>${allLocationsHTML}
                     `;
 
-                    // 最寄りの目的地に基づいてモデルを設定
-                    if (closestLocation) {
-                        modelEntity.setAttribute('gltf-model', closestLocation.modelUrl);
-                        modelEntity.setAttribute('gps-entity-place', `latitude: ${closestLocation.latitude}; longitude: ${closestLocation.longitude}`);
-                        modelEntity.setAttribute('visible', true);
-
-                        // スケールを適切に設定（小さい場合は調整）
-                        modelEntity.object3D.scale.set(3, 3, 3);
-
-                        // デバッグログ（デバッグ用）
-                        console.log("モデル設定:", closestLocation.modelUrl, closestLocation.latitude, closestLocation.longitude);
-                    }
+                    console.log("1000m以内の目的地:", nearbyLocations);
                 },
                 (error) => {
                     console.error("位置情報の取得に失敗:", error.message);
