@@ -24,18 +24,16 @@
     <div id="locationDisplay">位置情報を取得中...</div>
 
     <a-scene vr-mode-ui="enabled: false" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-        <!-- 3Dモデルを表示するためのテンプレート -->
     </a-scene>
 
     <script>
         const locationDisplay = document.getElementById('locationDisplay');
         const scene = document.querySelector('a-scene');
-        const R = 6371000; // 地球の半径（メートル）
+        const R = 6371000;
 
-        // JSONデータを取得
         async function fetchLocations() {
             try {
-                const response = await fetch('data.json'); // JSONファイルを読み込む
+                const response = await fetch('data.json');
                 if (!response.ok) throw new Error("JSONファイルが見つかりません");
                 return await response.json();
             } catch (error) {
@@ -45,7 +43,6 @@
             }
         }
 
-        // 距離計算関数
         function calculateDistance(lat1, lon1, lat2, lon2) {
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -54,7 +51,6 @@
             return R * c;
         }
 
-        // GPS位置取得
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(
                 async (position) => {
@@ -72,8 +68,8 @@
                             const modelEntity = document.createElement('a-entity');
                             modelEntity.setAttribute('gltf-model', location.modelUrl);
                             modelEntity.setAttribute('gps-entity-place', `latitude: ${location.latitude}; longitude: ${location.longitude}`);
-                            modelEntity.setAttribute('scale', '0.2 0.2 0.2');
-                            modelEntity.setAttribute('position', '0 -2 -2'); // 位置を調整
+                            modelEntity.setAttribute('scale', location.scale);
+                            modelEntity.setAttribute('position', location.position);
                             scene.appendChild(modelEntity);
                         }
                         allLocationsHTML += `<strong>${location.name}</strong> - 距離: ${distance.toFixed(1)}m<br>`;
